@@ -1,21 +1,18 @@
-name: Ubuntu 22.04 VPS
+name: Ubuntu SSH + Tailscale
 
 on:
   workflow_dispatch:
 
 jobs:
-  ubuntu:
+  ssh:
     runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
-      - name: Update
-        run: |
-          sudo apt update
-
       - name: Install SSH
         run: |
-          sudo apt install -y openssh-server
+          sudo apt update
+          sudo apt install -y openssh-server curl
           sudo systemctl enable ssh
           sudo systemctl start ssh
 
@@ -23,13 +20,36 @@ jobs:
         run: |
           echo "runner:123456" | sudo chpasswd
 
-      - name: Install XFCE + VNC
+      - name: Install Tailscale
         run: |
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Login to Tailscale
+        run: |
+          sudo tailscale up \
+            --authkey="${{ secrets.TAILSCALE_AUTHKEY }}" \
+            --ssh
+
+      - name: Show Connection Info
+        run: |
+          echo "==============================="
+          echo "SSH READY"
+          echo "==============================="
+          echo "Username : runner"
+          echo "Password : 123456"
+          echo ""
+          echo "Tailscale IP:"
+          tailscale ip -4
+          echo ""
+          echo "SSH Command:"
+          echo "ssh runner@$(tailscale ip -4)"
+          echo ""
+          echo "Status:"
+          tailscale status
+          echo "==============================="
 
       - name: Keep Alive
         run: |
           while true; do
-            echo "Running..."
             sleep 300
           done
