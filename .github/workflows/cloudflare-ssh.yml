@@ -1,0 +1,66 @@
+name: Ubuntu SSH Cloudflare Tunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ssh-server:
+
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+
+    - name: Update System
+      run: |
+        sudo apt update
+        sudo apt upgrade -y
+
+    - name: Install SSH Server
+      run: |
+        sudo apt install -y openssh-server curl wget
+        sudo systemctl enable ssh
+        sudo systemctl start ssh
+
+    - name: Create SSH User
+      run: |
+        sudo useradd -m runner || true
+        echo "runner:123456" | sudo chpasswd
+        sudo usermod -aG sudo runner
+
+    - name: Install Cloudflared
+      run: |
+        wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        sudo dpkg -i cloudflared-linux-amd64.deb
+
+    - name: Start Cloudflare Tunnel
+      run: |
+        cloudflared tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }} > cloudflared.log 2>&1 &
+
+        sleep 10
+
+        cat cloudflared.log
+
+    - name: Show Connection Info
+      run: |
+        echo "==============================="
+        echo "SSH READY"
+        echo "==============================="
+        echo "Username:"
+        echo "runner"
+        echo ""
+        echo "Password:"
+        echo "123456"
+        echo ""
+        echo "SSH Host:"
+        echo "ssh.mortezavpn.qzz.io"
+        echo ""
+        echo "Command:"
+        echo "ssh runner@ssh.mortezavpn.qzz.io"
+        echo "==============================="
+
+    - name: Keep Alive
+      run: |
+        while true; do
+          sleep 300
+        done
