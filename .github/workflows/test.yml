@@ -1,0 +1,47 @@
+name: Fast Ubuntu SSH Direct
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ssh-server:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+
+    - name: Install SSH
+      run: |
+        sudo apt update -qq
+        sudo apt install -y -qq openssh-server
+
+        sudo service ssh start
+
+        # Create MORTEZA user
+        sudo useradd -m MORTEZA || true
+        echo "MORTEZA:1202" | sudo chpasswd
+        sudo usermod -aG sudo MORTEZA
+
+        # Enable password login
+        sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+        sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
+        sudo service ssh restart
+
+
+    - name: Show SSH Info
+      run: |
+        echo "=============================="
+        echo "SSH READY"
+        echo "=============================="
+        echo "Username: MORTEZA"
+        echo "Password: 1202"
+        echo ""
+        echo "SSH Command:"
+        echo "ssh MORTEZA@ssh.mortezavpn.qzz.io"
+        echo "=============================="
+
+
+    - name: Keep Alive
+      run: |
+        while true; do sleep 300; done
