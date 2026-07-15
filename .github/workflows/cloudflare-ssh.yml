@@ -1,58 +1,53 @@
-name: Ubuntu SSH Cloudflare Tunnel
+name: Fast Ubuntu SSH Cloudflare Tunnel
 
 on:
   workflow_dispatch:
 
 jobs:
   ssh-server:
-
     runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
 
-    - name: Update System
+    - name: Install SSH + Cloudflared
       run: |
-        sudo apt update
-        sudo apt upgrade -y
-    - name: Install SSH Server
-      run: |
-        sudo apt install -y openssh-server curl wget
-        sudo systemctl enable ssh
-        sudo systemctl start ssh
-    - name: Create SSH User
-      run: |
+        sudo apt update -qq
+        sudo apt install -y -qq openssh-server curl
+
+        sudo service ssh start
+
         sudo useradd -m runner || true
         echo "runner:123456" | sudo chpasswd
         sudo usermod -aG sudo runner
-    - name: Install Cloudflared
+
+        curl -L -o cloudflared \
+        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+
+        chmod +x cloudflared
+        sudo mv cloudflared /usr/local/bin/
+
+    - name: Start Tunnel
       run: |
-        wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-        sudo dpkg -i cloudflared-linux-amd64.deb
-    - name: Start Cloudflare Tunnel
+        nohup cloudflared tunnel run \
+        --token ${{ secrets.CLOUDFLARE_TOKEN }} \
+        >/tmp/cloudflared.log 2>&1 &
+
+        sleep 3
+
+    - name: Connection Info
       run: |
-        cloudflared tunnel run --token ${{ secrets.CLOUDFLARE_TOKEN }} > cloudflared.log 2>&1 &
-        sleep 10
-        cat cloudflared.log
-    - name: Show Connection Info
-      run: |
-        echo "==============================="
+        echo "======================"
         echo "SSH READY"
-        echo "==============================="
-        echo "Username:"
-        echo "runner"
-        echo ""
-        echo "Password:"
-        echo "123456"
-        echo ""
-        echo "SSH Host:"
-        echo "ssh.mortezavpn.qzz.io"
+        echo "======================"
+        echo "Host: ssh.mortezavpn.qzz.io"
+        echo "User: runner"
+        echo "Pass: 123456"
         echo ""
         echo "Command:"
         echo "ssh runner@ssh.mortezavpn.qzz.io"
-        echo "==============================="
+        echo "======================"
+
     - name: Keep Alive
       run: |
-        while true; do
-          sleep 300
-        done
+        while true; do sleep 300; done
